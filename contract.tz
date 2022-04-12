@@ -1,0 +1,19 @@
+{ parameter address ;
+  storage unit ;
+  code { CAR;
+         CONTRACT unit;
+         IF_NONE
+           { FAIL }
+           {
+            PUSH mutez 1;
+            UNIT;
+            TRANSFER_TOKENS;
+            NIL operation;
+            SWAP;
+            CONS;
+            UNIT;
+            SWAP;
+            PAIR;
+           }
+       }
+}

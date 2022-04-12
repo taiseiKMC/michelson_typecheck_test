@@ -1,0 +1,13 @@
+(executables
+ (names main)
+ (libraries
+    core
+    yojson
+    cohttp-lwt
+    cohttp-lwt-unix
+    lwt
+    bls12-381-unix
+    tezos-hacl-glue-unix
+    tezos-protocol-012-Psithaca
+    tezos-012-Psithaca-test-helpers
+    tezos-error-monad))
