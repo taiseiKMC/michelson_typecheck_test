@@ -3,6 +3,7 @@ open Tezos_protocol_012_Psithaca.Protocol
 open Tezos_error_monad.Error_monad.Lwt_result_syntax
 (* open Tezos_012_Psithaca_test_helpers *)
 
+(* Copied from tezos/src/proto_012_Psithaca/lib_benchmark/execution_context.ml *)
 let context_init_memory ~rng_state =
   let open Tezos_012_Psithaca_test_helpers in
   let open Tezos_error_monad.Error_monad in
