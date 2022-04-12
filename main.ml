@@ -90,7 +90,11 @@ let () =
     let* (type_map, _) =
       let open Tezos_error_monad.Error_monad.Lwt_syntax in
       let* t = Script_ir_translator.typecheck_code ~legacy:false ~show_types:true ctxt program.expanded in
-      match t with Ok t -> return (Ok t) | _ -> failwith "a" in
+      match t with
+      | Ok t -> return (Ok t)
+      | Error e ->
+          Format.eprintf "%a" Environment.Error_monad.pp_trace e;
+          failwith "typecheck failure" in
     (* Format.printf "%a\n" Michelson_v1_emacs.print_type_map (program, type_map); *)
     let program = Michelson_v1_printer.inject_types type_map program in
     Format.printf "%a\n" Tezos_micheline.Micheline_printer.print_expr program;
