@@ -27,7 +27,6 @@ let context_init_memory ~rng_state =
 let make ~rng_state =
   let open Tezos_012_Psithaca_test_helpers in
   let open Tezos_error_monad.Error_monad in
-  let open Tezos_protocol_012_Psithaca.Protocol in
   context_init_memory ~rng_state >>=? fun context ->
   let amount = Alpha_context.Tez.one in
   let chain_id = Tezos_crypto.Chain_id.zero in
@@ -80,8 +79,11 @@ let () =
         let buffer = Bytes.create buffer_size in
         let rec read_chunks sum =
           let* n = Lwt_unix.read fd buffer 0 buffer_size in
-            if n == 0 then return sum
-            else read_chunks (sum ^ Bytes.to_string buffer) in
+          if n = 0 then return sum
+          else
+            let str = Bytes.to_string
+                (if n < buffer_size then Bytes.sub buffer 0 n else buffer) in
+            read_chunks (sum ^ str) in
         read_chunks "" in
       read_fd fd in
 
@@ -93,8 +95,8 @@ let () =
       match t with
       | Ok t -> return (Ok t)
       | Error e ->
-          Format.eprintf "%a" Environment.Error_monad.pp_trace e;
-          failwith "typecheck failure" in
+        Format.eprintf "%a" Environment.Error_monad.pp_trace e;
+        failwith "typecheck failure" in
     (* Format.printf "%a\n" Michelson_v1_emacs.print_type_map (program, type_map); *)
     let program = Michelson_v1_printer.inject_types type_map program in
     Format.printf "%a\n" Tezos_micheline.Micheline_printer.print_expr program;
