@@ -61,45 +61,43 @@ let make ~rng_state =
   in
   return (ctxt, step_constants)
 
+let read_file fn =
+  let open Lwt.Syntax in
+  let* fd = Lwt_unix.(openfile fn [ O_RDONLY; O_NONBLOCK; O_CLOEXEC ] 0) in
+  let read_fd fd =
+    let buffer_size = 4096 in
+    let buffer = Bytes.create buffer_size in
+    let rec read_chunks sum =
+      let* n = Lwt_unix.read fd buffer 0 buffer_size in
+      if n = 0 then return sum
+      else
+        let str = Bytes.to_string
+            (if n < buffer_size then Bytes.sub buffer 0 n else buffer) in
+        read_chunks (sum ^ str) in
+    read_chunks "" in
+  read_fd fd
 
-module S = Set.Make(struct
-    type t = string
-    let compare = compare
-  end)
+let typecheck program =
+  let rng_state = Random.State.make [||] in
+  let* (ctxt, _) = make ~rng_state in
+  let open Tezos_error_monad.Error_monad.Lwt_syntax in
+  let* t = Script_ir_translator.typecheck_code ~legacy:false ~show_types:true ctxt program.expanded in
+  match t with
+  | Ok (type_map, _) -> return (Ok type_map)
+  | Error e ->
+    Format.eprintf "%a" Environment.Error_monad.pp_trace e;
+    failwith "typecheck failure"
+
 let () =
-  Lwt_main.run begin
-    let rng_state = Random.State.make [||] in
+  let f =
+    let fn = "./contract.tz" in
+    let* source = read_file fn in
 
-    let* source =
-      let open Lwt.Syntax in
-      let fn = "./contract.tz" in
-      let* fd = Lwt_unix.(openfile fn [ O_RDONLY; O_NONBLOCK; O_CLOEXEC ] 0) in
-      let read_fd fd =
-        let buffer_size = 4096 in
-        let buffer = Bytes.create buffer_size in
-        let rec read_chunks sum =
-          let* n = Lwt_unix.read fd buffer 0 buffer_size in
-          if n = 0 then return sum
-          else
-            let str = Bytes.to_string
-                (if n < buffer_size then Bytes.sub buffer 0 n else buffer) in
-            read_chunks (sum ^ str) in
-        read_chunks "" in
-      read_fd fd in
-
-    let* (ctxt, _) = make ~rng_state in
     let* (program, _) = Client_proto_programs.Program.of_source source in
-    let* (type_map, _) =
-      let open Tezos_error_monad.Error_monad.Lwt_syntax in
-      let* t = Script_ir_translator.typecheck_code ~legacy:false ~show_types:true ctxt program.expanded in
-      match t with
-      | Ok t -> return (Ok t)
-      | Error e ->
-        Format.eprintf "%a" Environment.Error_monad.pp_trace e;
-        failwith "typecheck failure" in
+    let* type_map = typecheck program in
     (* Format.printf "%a\n" Michelson_v1_emacs.print_type_map (program, type_map); *)
     let program = Michelson_v1_printer.inject_types type_map program in
     Format.printf "%a\n" Tezos_micheline.Micheline_printer.print_expr program;
-    return ()
-  end |> function
+    return () in
+  Lwt_main.run f |> function
   | Ok _ -> () | Error _ -> failwith ""
